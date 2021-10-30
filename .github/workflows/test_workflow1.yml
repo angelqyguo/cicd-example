@@ -8,8 +8,8 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
       - run: terraform --version
       - run: |
-          apt update
-          apt install software-properties-common
-          add-apt-repository --yes --update ppa:ansible/ansible
-          apt install ansible
+          sudo apt update
+          sudo apt install software-properties-common
+          sudo add-apt-repository --yes --update ppa:ansible/ansible
+          sudo apt install ansible
       - run: ansible --version
