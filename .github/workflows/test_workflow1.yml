@@ -5,11 +5,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: hashicorp/setup-terraform@v1
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v1
       - run: terraform --version
-      - run: |
-          sudo apt update
-          sudo apt install software-properties-common
-          sudo add-apt-repository --yes --update ppa:ansible/ansible
-          sudo apt install ansible
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+          architecture: x64
+      - name: Install ansible
+        run: |
+          pip3 install -U pip
+          pip3 install ansible
       - run: ansible --version
