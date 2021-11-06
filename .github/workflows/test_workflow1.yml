@@ -1,5 +1,8 @@
 name: website-testing
-on: [push]
+on:
+  pull_request:
+    branches:
+      - main
 jobs:
   check-bats-version:
     runs-on: ubuntu-latest
@@ -7,7 +10,6 @@ jobs:
       - uses: actions/checkout@v2
       - name: Setup terraform
         uses: hashicorp/setup-terraform@v1
-      - run: terraform --version
       - name: Setup python
         uses: actions/setup-python@v2
         with:
@@ -17,4 +19,32 @@ jobs:
         run: |
           pip3 install -U pip
           pip3 install ansible
-      - run: ansible --version
+      - name: gcloud login
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+      - name: build web server
+        run: |
+          terraform init
+          terraform apply -auto-approve -var public_key="${{ secrets.TEST_SERVER_PUB_KEY }}"
+        working-directory: test_web_server_terraform
+      - name: get web server ip
+        id: terraform_output
+        run: terraform output -raw nat_ip
+        working-directory: test_web_server_terraform
+      - name: wait 30 seconds
+        run: sleep 30
+      - name: deploy web site
+        run: |
+          echo ${{ secrets.TEST_SERVER_PRIVATE_KEY }} | base64 -d > test_private_key
+          chmod 400 test_private_key
+          ansible-playbook -i ${{ steps.terraform_output.outputs.stdout }}, -u angel --private-key test_private_key website_deploy_ansible/site.yml
+      - name: download web page
+        run: wget http://${{ steps.terraform_output.outputs.stdout }} -O deployed_website.html
+      - name: destroy web server
+        run: terraform destroy -auto-approve -var public_key="${{ secrets.TEST_SERVER_PUB_KEY }}"
+        working-directory: test_web_server_terraform
+      - name: compare web page
+        run: diff -u deployed_website.html website/index.html
